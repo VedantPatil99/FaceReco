@@ -2,7 +2,8 @@ import time
 import cv2
 import torch
 import numpy as np
-from facenet_pytorch import MTCNN, InceptionResnetV1
+from facenet_pytorch import InceptionResnetV1
+from model import face_detector as mtcnn
 from sklearn.metrics.pairwise import cosine_similarity
 import sys
 
@@ -24,7 +25,7 @@ def run_performance_metrics(num_frames=100):
     
     # Initialize Models
     log("Initializing models...")
-    mtcnn = MTCNN(keep_all=True, device=device)
+    # mtcnn (RetinaFace) is already initialized and imported
     model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
     
     # Warm-up
@@ -37,8 +38,8 @@ def run_performance_metrics(num_frames=100):
             _ = model(dummy_face)
     
     results = {
-        'Detection (MTCNN)': [],
-        'Extraction (MTCNN)': [],
+        'Detection (RetinaFace)': [],
+        'Extraction (RetinaFace)': [],
         'Inference Single (ResNet)': [],
         'Inference Batch 5 (ResNet)': [],
         'Inference Batch 10 (ResNet)': [],
@@ -61,12 +62,12 @@ def run_performance_metrics(num_frames=100):
         t0 = time.perf_counter()
         boxes, _ = mtcnn.detect(frame)
         if torch.cuda.is_available(): torch.cuda.synchronize()
-        results['Detection (MTCNN)'].append((time.perf_counter() - t0) * 1000)
+        results['Detection (RetinaFace)'].append((time.perf_counter() - t0) * 1000)
         
         # 2. Extraction
         t0 = time.perf_counter()
         faces = mtcnn.extract(frame, dummy_boxes, save_path=None)
-        results['Extraction (MTCNN)'].append((time.perf_counter() - t0) * 1000)
+        results['Extraction (RetinaFace)'].append((time.perf_counter() - t0) * 1000)
         
         # 3. Data Transfer
         t0 = time.perf_counter()
@@ -112,8 +113,8 @@ def run_performance_metrics(num_frames=100):
 
     total_latencies = []
     for j in range(num_frames):
-        lat = (results['Detection (MTCNN)'][j] + 
-               results['Extraction (MTCNN)'][j] + 
+        lat = (results['Detection (RetinaFace)'][j] + 
+               results['Extraction (RetinaFace)'][j] + 
                results['Data Transfer (to GPU)'][j] + 
                results['Inference Single (ResNet)'][j] + 
                results['Similarity Match'][j] + 
