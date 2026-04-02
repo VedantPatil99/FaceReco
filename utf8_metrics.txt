@@ -1,0 +1,21 @@
+System Device: CUDA
+GPU: NVIDIA GeForce RTX 3060 Laptop GPU
+Initializing models...
+Warming up models...
+Running 100 iterations for all metrics...
+
+============================================================
+OPERATION                      | MEAN (ms)  | STD (ms)  
+------------------------------------------------------------
+Detection (MTCNN)              | 52.74      | 7.82      
+Extraction (MTCNN)             | 0.37       | 0.14      
+Inference Single (ResNet)      | 30.68      | 5.00      
+Inference Batch 5 (ResNet)     | 30.22      | 9.55      
+Inference Batch 10 (ResNet)    | 30.10      | 8.07      
+Data Transfer (to GPU)         | 0.14       | 0.03      
+Similarity Match               | 0.66       | 0.09      
+Frame Drawing (CV2)            | 0.10       | 0.01      
+============================================================
+TOTAL PIPELINE LATENCY: 84.68 ms
+ESTIMATED REAL-TIME FPS: 11.81
+============================================================

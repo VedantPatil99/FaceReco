@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 import cv2
 import numpy as np
 from PIL import Image
@@ -6,7 +7,7 @@ from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode, RT
 import av
 
 from model import mtcnn, model, device
-from utils import get_embedding, compare
+from utils import get_embedding, get_embeddings_batch, compare
 
 # Professional Page Config
 st.set_page_config(page_title="CCTV Face Recognition", layout="wide", page_icon="👁️")
@@ -107,6 +108,8 @@ class VideoProcessor(VideoProcessorBase):
         scale_factor = 0.5
         small_rgb = cv2.resize(rgb, (0, 0), fx=scale_factor, fy=scale_factor)
         
+        import torch
+        t_start = time.time()
         boxes, probs = mtcnn.detect(small_rgb)
 
         if boxes is not None:
@@ -116,12 +119,29 @@ class VideoProcessor(VideoProcessorBase):
             # Extract faces directly from the original resolution image
             faces = mtcnn.extract(rgb, boxes, save_path=None)
             
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_detect = time.time()
+            detection_ms = (t_detect - t_start) * 1000
+            
             if faces is not None:
-                for i, face in enumerate(faces):
+                if target_emb is not None:
+                    embs = get_embeddings_batch(faces)
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    t_embed = time.time()
+                    embedding_ms = (t_embed - t_detect) * 1000
+                else:
+                    embs = [None] * len(faces)
+                    embedding_ms = 0
+                    
+                total_ms = (time.time() - t_start) * 1000
+                print(f"Detect: {detection_ms:.2f}ms | Embed: {embedding_ms:.2f}ms | Total: {total_ms:.2f}ms")
+
+                for i, emb in enumerate(embs):
                     x1, y1, x2, y2 = boxes[i]
                     
                     if target_emb is not None:
-                        emb = get_embedding(face)
                         sim = compare(target_emb, emb)
 
                         if sim > threshold:
@@ -170,7 +190,7 @@ with col2:
             <hr>
             <b>Model Backbone:</b> InceptionResnetV1<br>
             <b>Detection:</b> MTCNN<br>
-            <b>Device:</b> {device.upper()}<br>
+            <b>Device:</b> {str(device).upper()}<br>
             <hr>
             <b>Latency Check:</b> OK
         </div>
